@@ -1,4 +1,4 @@
-# CODE for *Don't Parrot the Expert : Soft Label Correction in Knowledge Distillation*
+# CODE for *Isotonic Data Augmentation For Knowledge Distillation*
 
 Here is the code for the paper *Don't Parrot the Expert : Soft Label Correction in Knowledge Distillation*
 
