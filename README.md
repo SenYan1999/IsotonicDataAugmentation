@@ -1,6 +1,6 @@
 # CODE for *Isotonic Data Augmentation For Knowledge Distillation*
 
-Here is the code for the paper *Don't Parrot the Expert : Soft Label Correction in Knowledge Distillation*
+Here is the code for the paper *Isotonic Data Augmentation For Knowledge Distillation*
 
 ## Train Teacher Model
 
@@ -22,7 +22,7 @@ python kd_main.py --dataset <dataset> --teacher_arch <teacher_arch> --arch <stud
 
 For example, to distill **ResNet18** from **ResNet50**, run:
 ```shell script
-python kd_main.py --dataset CIFAR100 --teacher-arch resnet50 --arch resnet20 --batch_size 128 --weight_decay 0.0005 --temperature 4.5 --alpha 0.95 --lr 0.1
+python kd_main.py --dataset CIFAR100 --teacher-arch resnet50 --arch resnet18 --batch_size 128 --weight_decay 0.0005 --temperature 4.5 --alpha 0.95 --lr 0.1
 ```
 
 ## Isotonic Data Augmentation for Knowledge Distillation
@@ -32,22 +32,24 @@ python kd_main.py --dataset <dataset> --num_classes <dataset_num_classes> --batc
 ```
 
 **Examples**
-- **(Mixup) KD-i**, distill **ResNet18** from **ResNet50**, run:
+- **(KD Mixup) KD-i**, distill **ResNet18** from **ResNet50**, run:
 ```shell script
-python kd_main.py --dataset CIFAR100 --num_classes 100 --batch_size 128 --epochs 200 --teacher_arch resnet56 --arch resnet20 --lr 0.1 --weight_decay 5e-4 --mixup_method mixup --temperature 4.5 --alpha 0.95 --calibration_method isotonic  --soft_constraint_ratio 2
+python kd_main.py --dataset CIFAR100 --num_classes 100 --batch_size 128 --epochs 200 --teacher_arch resnet50 --arch resnet18 --lr 0.1 --weight_decay 5e-4 --mixup_method mixup --temperature 4.5 --alpha 0.95 --calibration_method isotonic  --soft_constraint_ratio 2
 ```
 
-- **(Mixup) KD-p**, distill **ResNet18** from **ResNet50**, run:
+- **(KD Mixup) KD-p**, distill **ResNet18** from **ResNet50**, run:
 ```shell script
-python kd_main.py --dataset CIFAR100 --num_classes 100 --batch_size 128 --epochs 200 --teacher_arch resnet56 --arch resnet20 --lr 0.1 --weight_decay 5e-4 --mixup_method mixup --temperature 4.5 --alpha 0.95 --calibration_method isotonic_appr  --soft_constraint_ratio 2
+python kd_main.py --dataset CIFAR100 --num_classes 100 --batch_size 128 --epochs 200 --teacher_arch resnet50 --arch resnet18 --lr 0.1 --weight_decay 5e-4 --mixup_method mixup --temperature 4.5 --alpha 0.95 --calibration_method isotonic_appr  --soft_constraint_ratio 2
 ```
 
-- **(CutMix) KD-i**, distill **ResNet18** from **ResNet50**, run:
+- **(KD CutMix) KD-i**, distill **ResNet18** from **ResNet50**, run:
 ```shell script
-python kd_main.py --dataset CIFAR100 --num_classes 100 --batch_size 128 --epochs 200 --teacher_arch resnet56 --arch resnet20 --lr 0.1 --weight_decay 5e-4 --mixup_method cutmix --temperature 4.5 --alpha 0.95 --calibration_method isotonic --soft_constraint_ratio 2
+python kd_main.py --dataset CIFAR100 --num_classes 100 --batch_size 128 --epochs 200 --teacher_arch resnet50 --arch resnet18 --lr 0.1 --weight_decay 5e-4 --mixup_method cutmix --temperature 4.5 --alpha 0.95 --calibration_method isotonic --soft_constraint_ratio 2
 ```
 
-- **(CutMix) KD-p**, distill **ResNet18** from **ResNet50**, run:
+- **(KD CutMix) KD-p**, distill **ResNet18** from **ResNet50**, run:
 ```shell script
-python kd_main.py --dataset CIFAR100 --num_classes 100 --batch_size 128 --epochs 200 --teacher_arch resnet56 --arch resnet20 --lr 0.1 --weight_decay 5e-4 --mixup_method cutmix --temperature 4.5 --alpha 0.95 --calibration_method isotonic_appr  --soft_constraint_ratio 2
+python kd_main.py --dataset CIFAR100 --num_classes 100 --batch_size 128 --epochs 200 --teacher_arch resnet50 --arch resnet18 --lr 0.1 --weight_decay 5e-4 --mixup_method cutmix --temperature 4.5 --alpha 0.95 --calibration_method isotonic_appr  --soft_constraint_ratio 2
 ```
+
+**NOTE: As for CRD experiments, replace *kd_main.py* with *crd_kd.py* in the above commands.**

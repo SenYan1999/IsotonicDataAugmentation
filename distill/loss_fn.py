@@ -16,40 +16,6 @@ def hard_loss_mixup(outputs_mixed, target_a, target_b, lam):
     hard_loss = lam * F.cross_entropy(outputs_mixed, target_a) + (1 - lam) * F.cross_entropy(outputs_mixed, target_b)
     return hard_loss
 
-def soft_loss_mixup_no_correction(outputs_mixed, teacher_outputs_mixed, params):
-    T = params.temperature
-    return F.kl_div(F.log_softmax(outputs_mixed / T, dim=1), F.softmax(teacher_outputs_mixed / T, dim=1), reduction=params.reduction_method) * T * T
-
-def soft_loss_mixup_correction(outputs_mixed, teacher_outputs_mixed, topk_ground_truth, params):
-    T = params.temperature
-
-    # correction
-    min_in_ground_truth = torch.min(teacher_outputs_mixed + (1 - topk_ground_truth) * 1e8, dim=-1)[0]
-    max_in_false = torch.max(teacher_outputs_mixed - (topk_ground_truth) * 1e8, dim=-1)[0]
-    increment = torch.clamp(max_in_false - min_in_ground_truth, min=0).unsqueeze(-1)
-    teacher_outputs_mixed_correction = teacher_outputs_mixed + increment * topk_ground_truth
-
-    # soft label (there may be some errors! havn't multiply T^2, see the correction label)
-    loss = nn.KLDivLoss(reduction=params.reduction_method)(F.log_softmax(outputs_mixed / T, dim=-1), F.softmax(teacher_outputs_mixed_correction / T, dim=-1)) * T * T
-
-    return loss
-
-def soft_loss_mixup_correction_plus_remain_sum(outputs_mixed, teacher_outputs_mixed, topk_ground_truth, params):
-    T = params.temperature
-
-    # correction
-    min_in_ground_truth = torch.min(teacher_outputs_mixed + (1 - topk_ground_truth) * 1e8, dim=-1)[0]
-    max_in_false = torch.max(teacher_outputs_mixed - (topk_ground_truth) * 1e8, dim=-1)[0]
-    value = torch.clamp(max_in_false - min_in_ground_truth, min=0).unsqueeze(-1)
-    increment = value / 2 - value / params.num_classes
-    decrement = value / params.num_classes
-    teacher_outputs_mixed_correction = teacher_outputs_mixed + increment * topk_ground_truth - decrement * (1 - topk_ground_truth)
-
-    # soft label (there may be some errors! havn't multiply T^2, see the correction label)
-    loss = nn.KLDivLoss(reduction=params.reduction_method)(F.log_softmax(outputs_mixed / T, dim=-1), F.softmax(teacher_outputs_mixed_correction / T, dim=-1)) * T * T
-
-    return loss
-
 def loss_isotonic_appr(outputs_mixed, topk_ground_truth, mixed_y):
     min_in_ground_truth = torch.min(outputs_mixed + (1 - topk_ground_truth) * 1e8, dim=-1)[0]
     max_in_false = torch.max(outputs_mixed - (topk_ground_truth) * 1e8, dim=-1)[0]
@@ -65,27 +31,6 @@ def loss_isotonic_appr(outputs_mixed, topk_ground_truth, mixed_y):
 
     return soft_constraint_loss
 
-'''
-def loss_isotonic_appr(outputs_mixed, teacher_outputs_mixed, topk_ground_truth, labels_mixed, params):
-    alpha = params.alpha
-    T = params.temperature
-
-    loss3 = nn.KLDivLoss()(F.log_softmax(outputs_mixed,dim=1),labels_mixed)* (1. - alpha)
-    #F.cross_entropy(outputs, labels) * (1. - alpha)
-
-    loss1 = nn.KLDivLoss(reduction='none')(F.log_softmax(outputs_mixed / T, dim=1),
-                                           F.softmax(teacher_outputs_mixed / T, dim=1)) * (alpha * T * T)/(teacher_outputs_mixed.size(0)*teacher_outputs_mixed.size(1))
-
-    teacher_outputs_mixed_constraint = teacher_outputs_mixed * topk_ground_truth - (1-topk_ground_truth) * 1e8
-    loss2 = nn.KLDivLoss(reduction='none')(F.log_softmax(outputs_mixed / T, dim=1),
-                                           F.softmax(teacher_outputs_mixed_constraint / T, dim=1)) * (alpha * T * T)/(teacher_outputs_mixed.size(0)*teacher_outputs_mixed.size(1))
-
-    ratio=0.1
-
-    ret_loss = torch.sum(loss1*ratio + loss2*(1-ratio))+loss3
-    return ret_loss
-'''
-
 def loss_isotonic(outputs_mixed, teacher_outputs_mixed, lam, target_a, target_b, params):
     alpha = params.alpha
     T = params.temperature
@@ -98,3 +43,30 @@ def loss_isotonic(outputs_mixed, teacher_outputs_mixed, lam, target_a, target_b,
     loss = nn.KLDivLoss(reduction=params.reduction_method)(F.log_softmax(outputs_mixed / T, dim=-1), F.softmax(teacher_corrected / T, dim=-1)) * T * T
 
     return loss
+
+def loss_fn(outputs_mixed, teacher_outputs_mixed, mixed_y, target_a, target_b, lam, params):
+    # get hard loss
+    if params.mixup_method == 'none':
+        loss_hard = hard_loss(outputs_mixed, mixed_y)
+        loss_soft = soft_loss(outputs_mixed, teacher_outputs_mixed, params)
+        loss = params.alpha * loss_soft + (1 - params.alpha) * loss_hard
+        return loss
+
+    else:
+        loss_hard = hard_loss_mixup(outputs_mixed, target_a, target_b, lam)
+
+        # get soft loss
+        loss_soft = soft_loss(outputs_mixed, teacher_outputs_mixed, params)
+
+        # combine hard loss, soft loss and calibrated loss
+        if params.calibration_method == 'isotonic_appr':
+            topk_ground_truth = mixed_y.gt(0).float()
+            loss_constraint = loss_isotonic_appr(torch.softmax(outputs_mixed, dim=-1), topk_ground_truth, mixed_y)
+            loss = params.alpha * loss_soft + (1 - params.alpha) * loss_hard + params.soft_constraint_ratio * loss_constraint
+        elif params.calibration_method == 'isotonic':
+            loss_constraint = loss_isotonic(torch.softmax(outputs_mixed, dim=-1), teacher_outputs_mixed, lam, target_a, target_b, params)
+            loss = params.alpha * loss_soft + (1 - params.alpha) * loss_hard + params.soft_constraint_ratio * loss_constraint
+        else:
+            loss = params.alpha * loss_soft + (1 - params.alpha) * loss_hard
+
+        return loss

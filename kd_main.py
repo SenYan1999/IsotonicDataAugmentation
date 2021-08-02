@@ -14,7 +14,7 @@ import torch.distributed as dist
 
 import distill
 from utils.metric import AverageMeter, accuracy, accuracy_5
-from utils.evaluate import evaluate_kd, evaluate
+from utils.evaluate import evaluate_kd
 from utils.models import select_model
 from utils.data import get_dataloader
 from utils.utils import save_checkpoint
@@ -52,7 +52,7 @@ def get_lr_scheduler(optimizer):
     return lr_scheduler
 
 def train_and_evaluate(model, teacher_model, train_dataloader, val_dataloader, optimizer,
-                          experiment, params, **kwargs):
+                          params, **kwargs):
     """Train the model and evaluate every epoch.
 
     Args:
@@ -79,7 +79,7 @@ def train_and_evaluate(model, teacher_model, train_dataloader, val_dataloader, o
         # Run one epoch
         logging.info("Epoch {}/{}".format(epoch + 1, params.epochs))
 
-        train_metric = distill.kd(epoch, model, teacher_model, optimizer, train_dataloader, experiment, args)
+        train_metric = distill.kd(epoch, model, teacher_model, optimizer, train_dataloader, args)
 
         # Evaluate for one epoch on validation set
         val_metrics = evaluate_kd(model, val_dataloader, metrics, params)
@@ -109,8 +109,6 @@ if __name__ == '__main__':
     np.random.seed(args.random_seed)
     torch.manual_seed(args.random_seed)
     torch.cuda.manual_seed(args.random_seed)
-
-    experiment = None
 
     # distributed training setting
     if args.half:
@@ -155,9 +153,6 @@ if __name__ == '__main__':
         checkpoint = torch.load(teacher_checkpoint, map_location=lambda storage, loc: storage.cuda(args.local_rank))
         teacher_model.load_state_dict(checkpoint['state_dict'])
 
-    # before start, you may want to evaluate the teacher model's performance 
-    # evaluate(teacher_model, dev_dl, {'accuracy': accuracy}, args)
-    
     # train
     # TODO: train_sampler.set_epoch()
-    train_and_evaluate(student_model, teacher_model, train_dl, dev_dl, optimizer, experiment, args)
+    train_and_evaluate(student_model, teacher_model, train_dl, dev_dl, optimizer, args)

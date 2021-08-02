@@ -2,41 +2,13 @@ import torch
 import numpy as np
 
 from torch.autograd import Variable
-from utils import AverageMeter, RunningAverage, accuracy, update_experiment, imagenet_adjust_lr
+from utils import AverageMeter, RunningAverage, accuracy, imagenet_adjust_lr
 from tqdm import tqdm
 from apex import amp
 from .loss_fn import *
-from .calibration import *
 from .utils import *
 
-def loss_fn(outputs_mixed, teacher_outputs_mixed, mixed_y, target_a, target_b, lam, params):
-    # get hard loss
-    if params.mixup_method == 'none':
-        loss_hard = hard_loss(outputs_mixed, mixed_y)
-        loss_soft = soft_loss(outputs_mixed, teacher_outputs_mixed, params)
-        loss = params.alpha * loss_soft + (1 - params.alpha) * loss_hard
-        return loss
-
-    else:
-        loss_hard = hard_loss_mixup(outputs_mixed, target_a, target_b, lam)
-
-        # get soft loss
-        loss_soft = soft_loss(outputs_mixed, teacher_outputs_mixed, params)
-
-        # combine hard loss, soft loss and calibrated loss
-        if params.calibration_method == 'isotonic_appr':
-            topk_ground_truth = mixed_y.gt(0).float()
-            loss_constraint = loss_isotonic_appr(torch.softmax(outputs_mixed, dim=-1), topk_ground_truth, mixed_y)
-            loss = params.alpha * loss_soft + (1 - params.alpha) * loss_hard + params.soft_constraint_ratio * loss_constraint
-        elif params.calibration_method == 'isotonic':
-            loss_constraint = loss_isotonic(torch.softmax(outputs_mixed, dim=-1), teacher_outputs_mixed, lam, target_a, target_b, params)
-            loss = params.alpha * loss_soft + (1 - params.alpha) * loss_hard + params.soft_constraint_ratio * loss_constraint
-        else:
-            loss = params.alpha * loss_soft + (1 - params.alpha) * loss_hard
-
-        return loss
-
-def kd(epoch, model, teacher_model, optimizer, dataloader, experiment, params):
+def kd(epoch, model, teacher_model, optimizer, dataloader, params):
     model.train()
     teacher_model.eval()
 
@@ -97,8 +69,6 @@ def kd(epoch, model, teacher_model, optimizer, dataloader, experiment, params):
         # write to tensorboard
         step = i + epoch * len(dataloader)
         lr = optimizer.param_groups[0]['lr']
-        if params.local_rank == 0:
-            update_experiment(experiment, step, losses, top1, lr)
 
     return (top1.avg, losses.avg)
 

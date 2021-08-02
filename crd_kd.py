@@ -30,12 +30,6 @@ try:
 except ImportError:
     print("Please install apex from https://www.github.com/nvidia/apex to run this example.")
 
-# redirect std out
-log_name = 'crd_%s-%s-%s-%s-%s-%s-%s.log' % (args.dataset, args.teacher_arch, args.arch, args.mixup_method, args.calibration_method, str(args.soft_constraint_ratio), str(args.temperature))
-# log_name = '%s-%s-%s-%s-%s-%s.log' % (args.dataset, args.teacher_arch, args.arch, args.mixup_method, args.calibration_method, str(args.soft_constraint_ratio))
-stdout_file = open(os.path.join(args.log_dir, log_name), 'w')
-sys.stdout = stdout_file
-
 def get_lr_scheduler(optimizer):
     if args.dataset == 'CIFAR10' or args.dataset == 'STL10':
         # lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer,
