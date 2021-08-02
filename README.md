@@ -1,6 +1,6 @@
 # CODE for *Isotonic Data Augmentation For Knowledge Distillation*
 
-Here is the code for the paper **Isotonic Data Augmentation For Knowledge Distillation**
+Here is the code for the paper **[Isotonic Data Augmentation For Knowledge Distillation](https://arxiv.org/abs/2107.01412)**
 
 ## Train Teacher Model
 
