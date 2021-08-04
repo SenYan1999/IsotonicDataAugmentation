@@ -1,40 +1,45 @@
 import torch
+import numpy as np
 
-def isotonic_regression(soft,hard):
-    soft=soft.detach().clone()
-    _, indices = torch.topk(hard,k=2,dim=-1)
-    soft_t =soft.detach().clone()
+def isotonic_regression(soft_label, hard_label):
+    soft_label = soft_label.detach().clone()
+    _, indices_h = torch.topk(hard_label, k=2, dim=-1)
+    soft_t = soft_label.detach().clone()
+
     for i in range(soft_t.size(0)):
-        soft_t[i][indices[i][0]] += 1e8
-        soft_t[i][indices[i][1]] += 1e4
-    _, indices_i = torch.sort(soft_t,-1,descending=True)
-    for ii in range(soft.size(0)):
-        i=2
-        size_2 = 1.0
-        size_1 = 1.0
-        set2 = []
-        set1 = []
-        while i<soft.size(1) and soft[ii][indices_i[ii][i]]>soft[ii][indices[ii][1]]:
-            index=indices_i[ii][i]
-            soft[ii][indices[ii][1]] =(soft[ii][indices[ii][1]]*size_2+soft[ii][index]) /(size_2+1)
-            size_2+=1
-            set2.append(index)
-            i+=1
-        if soft[ii][indices[ii][1]]>soft[ii][indices[ii][0]]:
-            soft[ii][indices[ii][0]] = (soft[ii][indices[ii][1]] * size_2 + soft[ii][indices[ii][0]]) / (size_2 + 1)
-            size_1 = size_2+1
-            set1.extend(set2)
-            set1.append(indices[ii][1])
-            while i < soft.size(1) and soft[ii][indices_i[ii][i]] > soft[ii][indices[ii][0]]:
-                index = indices_i[ii][i]
-                soft[ii][indices[ii][0]] = (soft[ii][indices[ii][0]] * size_1 + soft[ii][index]) / (size_1 + 1)
-                size_1 += 1
-                set1.append(index)
-                i += 1
-            for t in set1:
-                soft[ii][t]=soft[ii][indices[ii][0]]
+        soft_t[i][indices_h[i][0]] += 1e8 # top1 label
+        soft_t[i][indices_h[i][1]] += 1e4 # top2 label
+    
+    _, indices_s = torch.sort(soft_t, -1, descending=True)
+
+    for i in range(soft_label.size(0)):
+        j = 2
+        top1_idx, top2_idx = indices_s[i][0], indices_s[i][1]
+        bin1, bin2 = [top1_idx], [top2_idx]
+
+        while j < soft_label.size(1) and soft_label[i][indices_s[i][j]] > soft_label[i][top2_idx]:
+            index = indices_s[i][j] # find order violation and record the index
+            bin_avg = (soft_label[i][top2_idx] * len(bin2) + soft_label[i][index]) / (len(bin2) + 1)
+            soft_label[i][top2_idx] = bin_avg
+            bin2.append(index) # append order violation node to bin 2
+            j += 1
+        
+        if soft_label[i][top2_idx] > soft_label[i][top1_idx]:
+            bin_avg = (soft_label[i][top2_idx] * len(bin2) + soft_label[i][top1_idx]) / (len(bin2) + 1)
+            soft_label[i][top1_idx] = bin_avg
+            bin1 += bin2
+            
+            while j < soft_label.size(1) and soft_label[i][indices_s[i][j]] > soft_label[i][top1_idx]:
+                index = indices_s[i][j]
+                bin_avg = (soft_label[i][top1_idx] * len(bin1) + soft_label[i][index]) / (len(bin1) + 1)
+                soft_label[i][top1_idx] = bin_avg
+                bin1.append(index)
+                j += 1
+
+            for t in bin1:
+                soft_label[i][t] = soft_label[i][top1_idx]
         else:
-            for t in set2:
-                soft[ii][t]=soft[ii][indices[ii][1]]
-    return soft.detach()
+            for t in bin2:
+                soft_label[i][t] = soft_label[i][top2_idx]
+    return soft_label.detach()
 
